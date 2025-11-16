@@ -7,7 +7,7 @@ library(plotly)
 library(DT)
 library(shinycssloaders)
 
-pop <- read.csv("C:/Users/do_er/Desktop/MAEST/Ciclo 2/Análisis Demográfico/Trabajo Grupal/TrabajoGrupalAD/BDDEmigra2024.csv", 
+pop <- read.csv("BDDEmigra2024.csv", 
                 sep = ";", stringsAsFactors = FALSE)
 # UI - Interfaz de usuario profesional
 ui <- fluidPage(
