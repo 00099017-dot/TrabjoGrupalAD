@@ -9,6 +9,7 @@ library(shinycssloaders)
 
 pop <- read.csv("BDDEmigra2024.csv", 
                 sep = ";", stringsAsFactors = FALSE)
+
 # UI - Interfaz de usuario profesional
 ui <- fluidPage(
   theme = shinytheme("flatly"),
@@ -327,6 +328,12 @@ ui <- fluidPage(
                       withSpinner(DTOutput("tabla_etarios"), type = 6, color = "#3498db")
                     ),
                     tabPanel(
+                      title = tagList(icon("venus-mars"), " Resumen por Año y Sexo"),  # NUEVA PESTAÑA
+                      br(),
+                      p("Distribución de emigración por año y sexo"),
+                      withSpinner(DTOutput("tabla_sexo"), type = 6, color = "#3498db")
+                    ),
+                    tabPanel(
                       title = tagList(icon("table"), " Datos Individuales"),
                       br(),
                       p("Registros individuales de emigración"),
@@ -519,6 +526,24 @@ server <- function(input, output, session) {
     
     datos_filtrados() %>%
       group_by(Año = E01_5_EMI_ANO, Grupo_Etario = Etario) %>%
+      summarise(
+        Total_Emigrantes = n(),
+        Porcentaje_Anual = round(n() / sum(n()) * 100, 2),
+        Porcentaje_Total = round(n() / nrow(datos_filtrados()) * 100, 2),
+        Edad_Promedio = round(mean(E01_4_EMI_EDAD, na.rm = TRUE), 1),
+        Edad_Mínima = min(E01_4_EMI_EDAD, na.rm = TRUE),
+        Edad_Máxima = max(E01_4_EMI_EDAD, na.rm = TRUE),
+        .groups = 'drop'
+      ) %>%
+      arrange(Año, desc(Total_Emigrantes))
+  })
+  
+  # NUEVO: Datos agregados por año y sexo
+  datos_agregados_sexo <- reactive({
+    req(datos_filtrados())
+    
+    datos_filtrados() %>%
+      group_by(Año = E01_5_EMI_ANO, Sexo) %>%
       summarise(
         Total_Emigrantes = n(),
         Porcentaje_Anual = round(n() / sum(n()) * 100, 2),
@@ -853,7 +878,59 @@ server <- function(input, output, session) {
       )
   })
   
-  # Tabla 4: Datos individuales (original)
+  # NUEVA TABLA: Resumen por año y sexo
+  output$tabla_sexo <- renderDT({
+    req(datos_agregados_sexo())
+    
+    datos <- datos_agregados_sexo() %>%
+      mutate(
+        Total_Emigrantes = format(Total_Emigrantes, big.mark = ",", scientific = FALSE),
+        Porcentaje_Anual = paste0(Porcentaje_Anual, "%"),
+        Porcentaje_Total = paste0(Porcentaje_Total, "%")
+      ) %>%
+      select(
+        Año,
+        Sexo,
+        Total_Emigrantes,
+        `Porcentaje Anual` = Porcentaje_Anual,
+        `Porcentaje Total` = Porcentaje_Total,
+        Edad_Promedio,
+        Edad_Mínima,
+        Edad_Máxima
+      )
+    
+    datatable(
+      datos,
+      options = list(
+        pageLength = 15,
+        scrollX = TRUE,
+        dom = 'Bfrtip',
+        buttons = list(
+          list(extend = 'copy', text = 'Copiar'),
+          list(extend = 'csv', text = 'CSV'),
+          list(extend = 'excel', text = 'Excel'),
+          list(extend = 'pdf', text = 'PDF')
+        ),
+        language = list(
+          url = '//cdn.datatables.net/plug-ins/1.10.11/i18n/Spanish.json'
+        )
+      ),
+      extensions = 'Buttons',
+      rownames = FALSE,
+      class = 'cell-border stripe hover',
+      caption = htmltools::tags$caption(
+        style = 'caption-side: top; text-align: center; color: #2c3e50; font-weight: bold;',
+        'Distribución de Emigración por Año y Sexo'
+      )
+    ) %>%
+      formatStyle(
+        columns = names(datos),
+        backgroundColor = 'white',
+        color = '#2c3e50'
+      )
+  })
+  
+  # Tabla 5: Datos individuales (original)
   output$data_table <- renderDT({
     req(datos_filtrados())
     
